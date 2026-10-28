@@ -58,6 +58,8 @@ one Rust simulation core shared by native and browser consumers.
   - the golden sweep, the Wasm adapter, the simulator and the dashboard.
 
   Existing golden rows are unchanged.
+- Playback glides each agent from its old node to its new one over
+  `min(260, speed × 0.8)` ms instead of jumping, for every algorithm.
 
 ## Compatibility decisions
 

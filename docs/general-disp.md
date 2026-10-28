@@ -10,7 +10,7 @@ the paper, not from earlier code in this repository.
 
 > **Where it lives.** The algorithm is `crates/ccm-algorithms/src/general_disp.rs`
 > and its tests `crates/ccm-experiments/tests/general_disp.rs` (hand traces,
-> collisions, probing rules, Lemmas 3 and 4 over a sweep) and
+> collisions, probing rules, Lemmas 3 and 4 and the time bound over a sweep) and
 > `crates/ccm-experiments/tests/comparison.rs` (multi-start comparison through
 > the runner). The CLI accepts `--algorithm general-disp`; CSV rows carry
 > `general_disp` and `algorithm_kind = paper`. `ccm transitions` prints its role
@@ -249,6 +249,13 @@ its round limit.
 `480 · k · (⌈log₂ k⌉ + 1)²` steps. Theorem 2 bounds the time by
 `O(k log k · log τ)`. The other algorithms keep `40 · k`.
 
+**Time bound in the tests.** With τ = min(k, maximum degree), every run of the
+sweep must take at most `12 · k · (⌊log₂ k⌋ + 1) · (⌊log₂(τ + 1)⌋ + 1)` steps:
+one twelve-step unit per agent, level and probe pass. No probe may take more
+than `⌊log₂(τ + 1)⌋ + 1` passes. The constant is measured, not proved: the
+worst sweep run uses 8.3 of the 12, on a six-node grid where the fixed unit
+dominates, and the larger random runs stay under 2.5.
+
 ## Counters
 
 | Counter | Meaning for GeneralDisp |
@@ -264,7 +271,8 @@ its round limit.
 
 The typed `GeneralStats` adds:
 - group changes: zombifications, incorporations, level-ups and the highest level;
-- probing: probe starts and passes, helper recruitments, dismissed and stolen helpers;
+- probing: probe starts and passes, the most passes in one probe, helper
+  recruitments, dismissed and stolen helpers;
 - movement: forward and backward moves, weak and strong chase moves, and stuck chases.
 
 ## What is not implemented
