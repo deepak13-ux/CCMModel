@@ -337,6 +337,8 @@ struct Simulation<'g, M, R> {
     stats: GeneralStats,
     metrics: M,
     recorder: R,
+    /// Who stands where, kept until a step moves someone.
+    occupancy: Option<OccupancyIndex>,
     centres: Vec<Centre>,
     trips: Vec<Trip>,
     /// Passes of the probe each settler `ψ(w)` is running.
@@ -394,6 +396,7 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
             },
             metrics,
             recorder,
+            occupancy: None,
             centres: Vec::new(),
             trips: Vec::new(),
             passes: vec![0; count],
@@ -454,7 +457,10 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
         self.intents.clear();
         self.homecoming.clear();
         self.outgoing.clear();
-        let occupancy = self.store.occupancy();
+        let occupancy = self
+            .occupancy
+            .take()
+            .unwrap_or_else(|| self.store.occupancy());
         let (phase, round) = match slot {
             1 => {
                 self.slot1_election(&occupancy);
@@ -502,6 +508,9 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
             }
         };
         self.commit(round)?;
+        if self.intents.is_empty() {
+            self.occupancy = Some(occupancy);
+        }
         self.settle_movers()?;
         self.check(slot)?;
         self.record(phase);
@@ -872,6 +881,9 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
             .map(agent_id)
             .filter(|&z| self.is_zombie(z))
             .collect();
+        // Worked out once per node, so a swarm of z zombies costs z, not z².
+        let mut swarm_at: Vec<Option<u32>> = vec![None; self.graph.node_count()];
+        let mut leader_at: Vec<Option<bool>> = vec![None; self.graph.node_count()];
         if first_slot {
             let mut updates = Vec::with_capacity(zombies.len());
             for &zombie in &zombies {
@@ -881,13 +893,15 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
                     .store
                     .settled_agent_at(v)
                     .map_or(memory.level_location, |s| self.memory[s.index()].level);
-                let swarm = occupancy
-                    .agents_at(v)
-                    .iter()
-                    .filter(|&&b| self.is_zombie(b))
-                    .map(|&b| self.memory[b.index()].level)
-                    .max()
-                    .unwrap_or(memory.level);
+                let swarm = *swarm_at[v.index()].get_or_insert_with(|| {
+                    occupancy
+                        .agents_at(v)
+                        .iter()
+                        .filter(|&&b| self.is_zombie(b))
+                        .map(|&b| self.memory[b.index()].level)
+                        .max()
+                        .unwrap_or(memory.level)
+                });
                 updates.push((zombie, location, swarm));
             }
             for (zombie, location, swarm) in updates {
@@ -911,7 +925,8 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
                 continue;
             }
             let v = self.state(zombie).node;
-            let leader_here = occupancy.agents_at(v).iter().any(|&b| self.is_leader(b));
+            let leader_here = *leader_at[v.index()]
+                .get_or_insert_with(|| occupancy.agents_at(v).iter().any(|&b| self.is_leader(b)));
             if leader_here {
                 continue;
             }
@@ -1163,7 +1178,10 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
 
     /// Logs every agent whose shown role or group changed since the last call.
     fn note_roles(&mut self, step: u64) {
-        let occupancy = self.store.occupancy();
+        let occupancy = self
+            .occupancy
+            .take()
+            .unwrap_or_else(|| self.store.occupancy());
         for index in 0..self.memory.len() {
             let agent = agent_id(index);
             let state = self.state(agent);
@@ -1198,6 +1216,7 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
                 });
             }
         }
+        self.occupancy = Some(occupancy);
     }
 
     fn note(&mut self, event: GroupEvent) {

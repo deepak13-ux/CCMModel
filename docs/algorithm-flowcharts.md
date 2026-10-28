@@ -2381,7 +2381,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
 }
 ```
 
-`legitimate` — [crates/ccm-algorithms/src/general_disp.rs:1109](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L1109-L1132)
+`legitimate` — [crates/ccm-algorithms/src/general_disp.rs:1124](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L1124-L1147)
 
 ```rust
     /// Definition 1: every agent on its own node, no zombie, every settler
@@ -2410,7 +2410,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot1_election` — [crates/ccm-algorithms/src/general_disp.rs:511](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L511-L540)
+`slot1_election` — [crates/ccm-algorithms/src/general_disp.rs:520](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L520-L549)
 
 ```rust
     /// Slot 1 (lines 3–6): leaders meeting a stronger group become zombies.
@@ -2445,7 +2445,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot2_settle` — [crates/ccm-algorithms/src/general_disp.rs:542](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L542-L635)
+`slot2_settle` — [crates/ccm-algorithms/src/general_disp.rs:551](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L551-L644)
 
 ```rust
     /// Slot 2 (lines 8–21): settle a zombie or incorporate the settler, level
@@ -2544,7 +2544,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot3_helpers_go` — [crates/ccm-algorithms/src/general_disp.rs:659](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L659-L681)
+`slot3_helpers_go` — [crates/ccm-algorithms/src/general_disp.rs:668](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L668-L690)
 
 ```rust
     /// Slot 3 (line 61): settlers with `help` set walk to the centre.
@@ -2572,7 +2572,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot4_check` — [crates/ccm-algorithms/src/general_disp.rs:704](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L704-L741)
+`slot4_check` — [crates/ccm-algorithms/src/general_disp.rs:713](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L713-L750)
 
 ```rust
     /// Slot 4 (lines 31–36): find missing helpers, dismiss weaker ones, and
@@ -2615,7 +2615,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot5_finish` — [crates/ccm-algorithms/src/general_disp.rs:743](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L743-L756)
+`slot5_finish` — [crates/ccm-algorithms/src/general_disp.rs:752](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L752-L765)
 
 ```rust
     /// Slot 5 (lines 38–40): a finished probe sends its helpers home.
@@ -2634,7 +2634,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot6_probe_out` — [crates/ccm-algorithms/src/general_disp.rs:758](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L758-L806)
+`slot6_probe_out` — [crates/ccm-algorithms/src/general_disp.rs:767](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L767-L815)
 
 ```rust
     /// Slot 6 (lines 43–47): probers go out, one port each.
@@ -2688,7 +2688,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`commit` — [crates/ccm-algorithms/src/general_disp.rs:1028](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L1028-L1052)
+`commit` — [crates/ccm-algorithms/src/general_disp.rs:1043](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L1043-L1067)
 
 ```rust
     /// Commits the step's moves together and charges one round.
@@ -2718,7 +2718,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot7_probe_back` — [crates/ccm-algorithms/src/general_disp.rs:808](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L808-L839)
+`slot7_probe_back` — [crates/ccm-algorithms/src/general_disp.rs:817](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L817-L848)
 
 ```rust
     /// Slot 7 (lines 49–54): recruit a same-group settler and come back.
@@ -2755,7 +2755,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot8_tally` — [crates/ccm-algorithms/src/general_disp.rs:841](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L841-L866)
+`slot8_tally` — [crates/ccm-algorithms/src/general_disp.rs:850](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L850-L875)
 
 ```rust
     /// Slot 8 (lines 56–59): record the pass and send helpers home.
@@ -2786,7 +2786,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`chase` — [crates/ccm-algorithms/src/general_disp.rs:868](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L868-L948)
+`chase` — [crates/ccm-algorithms/src/general_disp.rs:877](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L877-L963)
 
 ```rust
     /// Slots 9–10 (lines 63–68): weak zombies chase in both slots, strong
@@ -2796,6 +2796,9 @@ pub fn simulate<M: Metrics, R: Recorder>(
             .map(agent_id)
             .filter(|&z| self.is_zombie(z))
             .collect();
+        // Worked out once per node, so a swarm of z zombies costs z, not z².
+        let mut swarm_at: Vec<Option<u32>> = vec![None; self.graph.node_count()];
+        let mut leader_at: Vec<Option<bool>> = vec![None; self.graph.node_count()];
         if first_slot {
             let mut updates = Vec::with_capacity(zombies.len());
             for &zombie in &zombies {
@@ -2805,13 +2808,15 @@ pub fn simulate<M: Metrics, R: Recorder>(
                     .store
                     .settled_agent_at(v)
                     .map_or(memory.level_location, |s| self.memory[s.index()].level);
-                let swarm = occupancy
-                    .agents_at(v)
-                    .iter()
-                    .filter(|&&b| self.is_zombie(b))
-                    .map(|&b| self.memory[b.index()].level)
-                    .max()
-                    .unwrap_or(memory.level);
+                let swarm = *swarm_at[v.index()].get_or_insert_with(|| {
+                    occupancy
+                        .agents_at(v)
+                        .iter()
+                        .filter(|&&b| self.is_zombie(b))
+                        .map(|&b| self.memory[b.index()].level)
+                        .max()
+                        .unwrap_or(memory.level)
+                });
                 updates.push((zombie, location, swarm));
             }
             for (zombie, location, swarm) in updates {
@@ -2835,7 +2840,8 @@ pub fn simulate<M: Metrics, R: Recorder>(
                 continue;
             }
             let v = self.state(zombie).node;
-            let leader_here = occupancy.agents_at(v).iter().any(|&b| self.is_leader(b));
+            let leader_here = *leader_at[v.index()]
+                .get_or_insert_with(|| occupancy.agents_at(v).iter().any(|&b| self.is_leader(b)));
             if leader_here {
                 continue;
             }
@@ -2872,7 +2878,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot11_move` — [crates/ccm-algorithms/src/general_disp.rs:950](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L950-L1014)
+`slot11_move` — [crates/ccm-algorithms/src/general_disp.rs:965](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L965-L1029)
 
 ```rust
     /// Slot 11 (lines 23–26): move forward through `next`, or back.
@@ -2942,7 +2948,7 @@ pub fn simulate<M: Metrics, R: Recorder>(
     }
 ```
 
-`slot12_parent` — [crates/ccm-algorithms/src/general_disp.rs:1016](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L1016-L1026)
+`slot12_parent` — [crates/ccm-algorithms/src/general_disp.rs:1031](https://github.com/drdebmath/CCMModel/blob/main/crates/ccm-algorithms/src/general_disp.rs#L1031-L1041)
 
 ```rust
     /// Slot 12 (lines 27–29): leaders that moved record `parent ← pin`.
