@@ -512,6 +512,7 @@ struct Totals {
     weak_moves: u64,
     strong_moves: u64,
     backward: u64,
+    /// The most steps per agent, level and pass; the bound allows 12.
     worst_ratio: f64,
 }
 
@@ -581,10 +582,26 @@ fn check_run(g: &PortGraph, starts: &[NodeId], label: &str, totals: &mut Totals)
         }
     }
 
-    let tau = k.min(max_degree(g)).max(2);
-    let k_log = f64::from(u32::try_from(k.max(2)).unwrap());
-    let scale = k_log * k_log.log2() * f64::from(u32::try_from(tau).unwrap()).log2();
-    let ratio = f64::from(u32::try_from(result.steps).unwrap()) / scale;
+    // Theorem 2: O(k log k · log τ) steps. Lemma 3 caps the levels at
+    // ⌊log₂ k⌋ + 1 and one probe takes at most ⌊log₂(τ + 1)⌋ + 1 passes, so
+    // allow one twelve-step unit per agent, level and pass.
+    let k = u64::try_from(k).unwrap();
+    let tau = k.min(u64::try_from(max_degree(g)).unwrap());
+    let log_tau = u64::from((tau + 1).ilog2());
+    let log_k = u64::from(k.ilog2());
+    assert!(
+        result.stats.max_passes_in_one_probe <= log_tau + 1,
+        "{label}: a probe took {} passes, τ = {tau}",
+        result.stats.max_passes_in_one_probe
+    );
+    let units = k * (log_k + 1) * (log_tau + 1);
+    assert!(
+        result.steps <= 12 * units,
+        "{label}: {} steps exceed 12·{units}",
+        result.steps
+    );
+    let ratio =
+        f64::from(u32::try_from(result.steps).unwrap()) / f64::from(u32::try_from(units).unwrap());
     totals.worst_ratio = totals.worst_ratio.max(ratio);
 
     totals.runs += 1;
@@ -667,6 +684,25 @@ fn larger_multi_start_runs_disperse() {
         }
     }
     println!("{totals:?}");
+}
+
+#[test]
+fn probing_cost_grows_with_log_degree_not_degree() {
+    // A star entered from its leaves: the hub's degree grows 16-fold, the
+    // agent count stays at 8, and the most passes any probe needs stays
+    // bounded by log of the agent count.
+    let mut passes = Vec::new();
+    for leaves in [16_u32, 256] {
+        let edges: Vec<(u32, u32)> = (1..=leaves).map(|leaf| (0, leaf)).collect();
+        let g = graph(&edges, usize::try_from(leaves).unwrap() + 1);
+        for starts in [nodes(&[1; 8]), nodes(&[1, 1, 1, 1, 2, 2, 2, 2])] {
+            let result = run(&g, &starts).unwrap();
+            assert_dispersed(&result, &format!("{leaves} leaves"));
+            passes.push(result.stats.max_passes_in_one_probe);
+        }
+    }
+    assert_eq!(passes[..2], passes[2..]);
+    assert!(passes.iter().all(|&p| p <= u64::from(9_u32.ilog2()) + 1));
 }
 
 #[test]

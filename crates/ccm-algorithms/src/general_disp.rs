@@ -213,6 +213,8 @@ pub struct GeneralStats {
     pub max_level: u32,
     pub probe_inits: u64,
     pub probe_passes: u64,
+    /// The most passes one probe took, from `checked = −1` until it ended.
+    pub max_passes_in_one_probe: u64,
     pub helper_recruitments: u64,
     /// Helpers of a weaker group sent home in slot 4.
     pub helpers_dismissed: u64,
@@ -337,6 +339,8 @@ struct Simulation<'g, M, R> {
     recorder: R,
     centres: Vec<Centre>,
     trips: Vec<Trip>,
+    /// Passes of the probe each settler `ψ(w)` is running.
+    passes: Vec<u64>,
     /// `(ψ(w), port)` of each helper recruited in slot 7.
     recruited: Vec<(AgentId, PortId)>,
     moved: Vec<AgentId>,
@@ -392,6 +396,7 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
             recorder,
             centres: Vec::new(),
             trips: Vec::new(),
+            passes: vec![0; count],
             recruited: Vec::new(),
             moved: Vec::new(),
             homecoming: Vec::new(),
@@ -775,6 +780,13 @@ impl<'g, M: Metrics, R: Recorder> Simulation<'g, M, R> {
             self.centres[index].first = first;
             self.centres[index].count = count;
             self.stats.probe_passes += 1;
+            let passes = if first == 0 {
+                1
+            } else {
+                self.passes[psi.index()] + 1
+            };
+            self.passes[psi.index()] = passes;
+            self.stats.max_passes_in_one_probe = self.stats.max_passes_in_one_probe.max(passes);
             for (offset, &prober) in probers[..usize::from(count)].iter().enumerate() {
                 let port = PortId(first + u16::try_from(offset).expect("below the degree"));
                 self.intents.push(MoveIntent {
