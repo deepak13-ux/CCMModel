@@ -15,6 +15,14 @@ the paper, not from earlier code in this repository.
 > the runner). The CLI accepts `--algorithm general-disp`; CSV rows carry
 > `general_disp` and `algorithm_kind = paper`. `ccm transitions` prints its role
 > transitions and merges.
+>
+> In the browser:
+> - **Simulator:** choose GeneralDisp, then "Seeded groups" or "Click on graph",
+>   or the Two groups and Three groups presets. Agents are coloured by role with
+>   a ring for their group, and the line under the playback bar gives the slot,
+>   the unit and the merges of each step.
+> - **Dashboard:** GeneralDisp can be swept like the other algorithms.
+> - **Flowcharts:** the GeneralDisp chart walks through the twelve slots.
 
 ## The model
 
