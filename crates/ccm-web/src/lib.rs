@@ -171,10 +171,64 @@ struct AppState {
     compare_selected: Option<usize>,
     frame: usize,
     timer: Option<i32>,
+    /// The move being animated from frame `from` to the current frame.
+    glide: Option<Glide>,
     layout: Vec<(f64, f64)>,
     /// CSS size the cached layout was computed for, so a resize event that does
     /// not actually change the box does not rebuild it.
     layout_size: (f64, f64),
+}
+
+/// Agents gliding from where they were in frame `from` to the current frame.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Glide {
+    from: usize,
+    /// `Date.now()` when it started; also tells one glide from the next.
+    started: f64,
+    duration: f64,
+}
+
+/// How far a glide has got at `now`, from 0 to 1.
+fn glide_progress(glide: &Glide, now: f64) -> f64 {
+    if glide.duration <= 0.0 {
+        return 1.0;
+    }
+    ((now - glide.started) / glide.duration).clamp(0.0, 1.0)
+}
+
+/// Slow at both ends, so a move starts and settles gently.
+fn ease(t: f64) -> f64 {
+    if t < 0.5 {
+        2.0 * t * t
+    } else {
+        1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
+    }
+}
+
+/// Where each agent is drawn: on a ring around its node.
+fn ring_positions(
+    by_node: &[Vec<usize>],
+    points: &[(f64, f64)],
+    radius: f64,
+    agents: usize,
+) -> Vec<Option<(f64, f64)>> {
+    let mut out = vec![None; agents];
+    for (node, bucket) in by_node.iter().enumerate() {
+        let Some(point) = points.get(node) else {
+            continue;
+        };
+        let distance = radius + 5.0 + bucket.len().min(10) as f64;
+        for (index, &agent) in bucket.iter().enumerate() {
+            let angle = index as f64 * std::f64::consts::TAU / bucket.len().max(1) as f64;
+            if let Some(slot) = out.get_mut(agent) {
+                *slot = Some((
+                    point.0 + angle.cos() * distance,
+                    point.1 + angle.sin() * distance,
+                ));
+            }
+        }
+    }
+    out
 }
 
 fn element<T: JsCast>(document: &Document, id: &str) -> T {
@@ -860,11 +914,71 @@ fn set_frame(state: &Rc<RefCell<AppState>>, index: isize) {
         return;
     }
     app.frame = index.clamp(0, app.frames.len() as isize - 1) as usize;
+    app.glide = None;
     let timeline = element::<HtmlInputElement>(&app.document, "timeline");
     timeline.set_value(&app.frame.to_string());
     update_frame_label(&app);
     drop(app);
     render(state);
+}
+
+/// Moves one frame forward, gliding the agents that moved instead of
+/// jumping them, over `min(260, speed × 0.8)` ms.
+fn step_forward(state: &Rc<RefCell<AppState>>) {
+    let from = state.borrow().frame;
+    set_frame(state, from as isize + 1);
+    let started = {
+        let mut app = state.borrow_mut();
+        let large = app
+            .graph
+            .as_ref()
+            .map_or(true, |graph| graph.node_count > 2500);
+        if app.frame == from || large || !checked(&app.document, "showAgents") {
+            return;
+        }
+        let speed = value(&app.document, "speed")
+            .parse::<f64>()
+            .unwrap_or(240.0);
+        let started = js_sys::Date::now();
+        app.glide = Some(Glide {
+            from,
+            started,
+            duration: 260.0_f64.min(speed * 0.8),
+        });
+        started
+    };
+    animate(state, started);
+}
+
+/// Redraws on every animation frame until the glide that began at `started`
+/// ends or a newer one replaces it.
+fn animate(state: &Rc<RefCell<AppState>>, started: f64) {
+    let state = Rc::clone(state);
+    let next = Closure::once_into_js(move || {
+        let running = {
+            let app = state.borrow();
+            match app.glide {
+                Some(glide) if glide.started == started => {
+                    Some(glide_progress(&glide, js_sys::Date::now()) < 1.0)
+                }
+                _ => None,
+            }
+        };
+        match running {
+            Some(true) => {
+                render(&state);
+                animate(&state, started);
+            }
+            Some(false) => {
+                state.borrow_mut().glide = None;
+                render(&state);
+            }
+            None => {}
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window.request_animation_frame(next.unchecked_ref());
+    }
 }
 
 fn layout_for(graph: &Graph, width: f64, height: f64) -> Vec<(f64, f64)> {
@@ -1414,22 +1528,11 @@ fn render(state: &Rc<RefCell<AppState>>) {
     );
     let show_agents = checked(&app.document, "showAgents");
     let draw_individuals = show_agents && graph.node_count <= 2500;
-    let mut by_node: Vec<Vec<usize>> = vec![Vec::new(); points.len()];
-    if show_agents {
-        for (agent, node) in frame.positions.iter().enumerate() {
-            let status = frame.statuses.get(agent).copied().unwrap_or(1);
-            let visible = match status {
-                0 => checked(&app.document, "showSettled"),
-                2 => checked(&app.document, "showScout"),
-                _ => checked(&app.document, "showUnsettled"),
-            };
-            if visible {
-                if let Some(bucket) = by_node.get_mut(*node as usize) {
-                    bucket.push(agent);
-                }
-            }
-        }
-    }
+    let by_node = if show_agents {
+        visible_by_node(&app.document, frame, points.len())
+    } else {
+        vec![Vec::new(); points.len()]
+    };
     let radius = (2.5_f64).max((9.0_f64).min(12.0 - graph.node_count as f64 / 1800.0));
     if show_edges {
         context.set_stroke_style_str(&border);
@@ -1506,25 +1609,66 @@ fn render(state: &Rc<RefCell<AppState>>) {
         );
         context.fill();
         context.stroke();
-        if draw_individuals {
-            for (index, agent) in agents.iter().enumerate() {
-                let angle = index as f64 * std::f64::consts::TAU / agents.len().max(1) as f64;
-                let distance = radius + 5.0 + agents.len().min(10) as f64;
-                context.set_fill_style_str(
-                    COLORS[frame.statuses.get(*agent).copied().unwrap_or(0) as usize % 3],
-                );
-                context.begin_path();
-                let _ = context.arc(
-                    point.0 + angle.cos() * distance,
-                    point.1 + angle.sin() * distance,
-                    (2.0_f64).max(radius * 0.58),
-                    0.0,
-                    std::f64::consts::TAU,
-                );
-                context.fill();
+    }
+    if !draw_individuals {
+        return;
+    }
+    let agent_count = frame.positions.len();
+    let target = ring_positions(&by_node, &points, radius, agent_count);
+    let glide = app.glide.and_then(|glide| {
+        let before = app.frames.get(glide.from)?;
+        let t = ease(glide_progress(&glide, js_sys::Date::now()));
+        let start = visible_by_node(&app.document, before, points.len());
+        Some((ring_positions(&start, &points, radius, agent_count), t))
+    });
+    for (agent, to) in target.iter().enumerate() {
+        let Some(to) = to else {
+            continue;
+        };
+        let (x, y) = match &glide {
+            Some((start, t)) => match start.get(agent).copied().flatten() {
+                Some(from) => (from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t),
+                None => *to,
+            },
+            None => *to,
+        };
+        context.set_fill_style_str(
+            COLORS[frame.statuses.get(agent).copied().unwrap_or(0) as usize % 3],
+        );
+        context.begin_path();
+        let _ = context.arc(
+            x,
+            y,
+            (2.0_f64).max(radius * 0.58),
+            0.0,
+            std::f64::consts::TAU,
+        );
+        context.fill();
+    }
+}
+
+/// The agents shown at each node, after the settled/unsettled/scout filters.
+fn visible_by_node(document: &Document, frame: &Frame, nodes: usize) -> Vec<Vec<usize>> {
+    let show = [
+        checked(document, "showSettled"),
+        checked(document, "showUnsettled"),
+        checked(document, "showScout"),
+    ];
+    let mut by_node = vec![Vec::new(); nodes];
+    for (agent, node) in frame.positions.iter().enumerate() {
+        let status = frame.statuses.get(agent).copied().unwrap_or(1);
+        let visible = match status {
+            0 => show[0],
+            2 => show[2],
+            _ => show[1],
+        };
+        if visible {
+            if let Some(bucket) = by_node.get_mut(*node as usize) {
+                bucket.push(agent);
             }
         }
     }
+    by_node
 }
 
 /// Device pixel ratio, guarded against the zero/NaN a detached window reports.
@@ -2135,8 +2279,7 @@ fn toggle_play(state: &Rc<RefCell<AppState>>) {
             }
             set_text(&app.document, "play", "▶");
         } else {
-            let next = weak.borrow().frame as isize + 1;
-            set_frame(&weak, next);
+            step_forward(&weak);
         }
     });
     let timer = web_sys::window()
@@ -2441,6 +2584,7 @@ pub fn start() -> Result<(), JsValue> {
         compare_selected: None,
         frame: 0,
         timer: None,
+        glide: None,
         layout: Vec::new(),
         layout_size: (0.0, 0.0),
     }));
@@ -2472,10 +2616,7 @@ pub fn start() -> Result<(), JsValue> {
         let next = s.borrow().frame as isize - 1;
         set_frame(s, next);
     });
-    hook_click(&state, "next", |s| {
-        let next = s.borrow().frame as isize + 1;
-        set_frame(s, next);
-    });
+    hook_click(&state, "next", step_forward);
     hook_click(&state, "play", toggle_play);
     let timeline: HtmlInputElement = element(&document, "timeline");
     {
@@ -3177,5 +3318,41 @@ mod tests {
         assert_eq!(payload.graph.node_count, 2);
         assert_eq!(payload.frames.len(), 2);
         assert_eq!(payload.result.positions, vec![1]);
+    }
+
+    #[test]
+    fn glides_ease_from_the_old_ring_to_the_new_one() {
+        let glide = Glide {
+            from: 0,
+            started: 1000.0,
+            duration: 200.0,
+        };
+        assert_eq!(glide_progress(&glide, 900.0), 0.0);
+        assert_eq!(glide_progress(&glide, 1100.0), 0.5);
+        assert_eq!(glide_progress(&glide, 5000.0), 1.0);
+        assert_eq!(
+            glide_progress(
+                &Glide {
+                    duration: 0.0,
+                    ..glide
+                },
+                1000.0
+            ),
+            1.0
+        );
+        assert_eq!(ease(0.0), 0.0);
+        assert_eq!(ease(0.5), 0.5);
+        assert_eq!(ease(1.0), 1.0);
+        assert!(ease(0.25) < 0.25 && ease(0.75) > 0.75);
+
+        let points = [(0.0, 0.0), (100.0, 0.0)];
+        let by_node = vec![vec![2], vec![0]];
+        let ring = ring_positions(&by_node, &points, 4.0, 3);
+        assert_eq!(ring[0], Some((110.0, 0.0)));
+        assert_eq!(ring[1], None);
+        assert_eq!(ring[2], Some((10.0, 0.0)));
+        let pair = ring_positions(&[vec![0, 1], vec![]], &points, 4.0, 2);
+        let (a, b) = (pair[0].unwrap(), pair[1].unwrap());
+        assert!((a.0 - 11.0).abs() < 1e-9 && (b.0 + 11.0).abs() < 1e-9);
     }
 }
